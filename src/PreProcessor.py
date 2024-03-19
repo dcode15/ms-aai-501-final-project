@@ -91,7 +91,7 @@ class PreProcessor:
             required_fields = ["reviewText"]
 
         reviews = reviews.dropna(subset=required_fields, how="any")
-        reviews.loc[:, 'verified'] = reviews['verified'].astype(int)
+        reviews.loc[:, "verified"] = reviews["verified"].astype(int)
         reviews.loc[:, "vote"] = (reviews["vote"]
                                   .str.replace(",", "")
                                   .fillna(0)
@@ -99,3 +99,17 @@ class PreProcessor:
         reviews.loc[:, "reviewLength"] = reviews["reviewText"].str.len()
 
         return reviews
+
+    @staticmethod
+    def normalize_votes(reviews: pd.DataFrame) -> pd.DataFrame:
+        """
+        Normalizes 'vote' scores within each product group in a DataFrame.
+
+        :param reviews: DataFrame with 'asin' for product IDs and 'vote' for scores.
+        :return: Modified DataFrame with an added 'vote_std' column for normalized vote scores.
+        """
+        std_devs = reviews.groupby("asin")["vote"].transform("std")
+        df_filtered = reviews[std_devs > 0].copy()
+        df_filtered.loc[:, "vote_std"] = df_filtered.groupby("asin")["vote"].transform(
+            lambda x: (x - x.mean()) / x.std())
+        return df_filtered

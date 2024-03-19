@@ -14,6 +14,7 @@ reviews = pd.read_json(data_file_path, lines=True)
 
 print("Cleaning data.")
 reviews = PreProcessor.clean_review_objects(reviews)
+reviews = PreProcessor.normalize_votes(reviews)
 reviews["cleanedTokens"] = reviews["reviewText"].apply(PreProcessor.clean_text).apply(PreProcessor.stem_words)
 reviews["cleanedReview"] = reviews["cleanedTokens"].apply(lambda tokens: " ".join(tokens))
 
@@ -22,7 +23,7 @@ tfidf_matrix = PreProcessor.get_tf_idf_vectorization(reviews["cleanedReview"])
 
 print("Training model")
 X = hstack([tfidf_matrix, reviews["verified"].values[:, None], reviews["reviewLength"].values[:, None]])
-y = reviews["vote"]
+y = reviews["vote_std"]
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
 gbr = GradientBoostingRegressor(random_state=1)
 fit_start = process_time()
