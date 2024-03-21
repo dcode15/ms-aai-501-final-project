@@ -98,6 +98,10 @@ class PreProcessor:
                                   .astype(int))
         reviews.loc[:, "reviewLength"] = reviews["reviewText"].str.len()
 
+        reviews.loc[:, 'reviewTime'] = pd.to_datetime(reviews['reviewTime'], format='%m %d, %Y')
+        most_recent_review = reviews['reviewTime'].max()
+        reviews.loc[:, 'reviewAge'] = (most_recent_review - reviews['reviewTime']).apply(lambda x: x.days)
+
         return reviews
 
     @staticmethod
