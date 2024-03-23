@@ -1,21 +1,60 @@
 import string
-from typing import List, Any
+from typing import List, Any, Tuple
+import logging
 
 import nltk
 import pandas as pd
 from nltk.corpus import stopwords
+from nltk.corpus.reader import reviews
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.tokenize import word_tokenize
+from scipy.sparse import hstack
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+from PropertyEnums import TextNormalizationStrategy, VectorizationStrategy
+
+pd.options.mode.chained_assignment = None
+logger = logging.getLogger(__name__)
 
 
 class PreProcessor:
     """
     A class for preprocessing text data.
     """
-    nltk.download("stopwords")
-    nltk.download("wordnet")
-    nltk.download("punkt")
+    nltk.download("stopwords", quiet=True)
+    nltk.download("wordnet", quiet=True)
+    nltk.download("punkt", quiet=True)
+
+    @staticmethod
+    def preprocess_reviews(properties_file: str) -> Tuple:
+        import properties_template as properties
+        # properties = importlib.import_module(properties_file)
+
+        logger.info("Loading data.")
+        reviews = pd.read_json(properties.data_file_path, lines=True)
+        logger.info("Cleaning data.")
+        reviews = PreProcessor.clean_review_objects(reviews)
+        reviews = PreProcessor.normalize_votes(reviews)
+        reviews["cleanedTokens"] = reviews["reviewText"].apply(PreProcessor.clean_text,
+                                                               lowercase_text=properties.lowercase_text,
+                                                               remove_punctuation=properties.remove_punctuation,
+                                                               remove_stopwords=properties.remove_stopwords)
+
+        if properties.text_normalization_strategy == TextNormalizationStrategy.STEMMING:
+            reviews["cleanedTokens"] = reviews["cleanedTokens"].apply(PreProcessor.stem_words)
+        elif properties.text_normalization_strategy == TextNormalizationStrategy.LEMMATIZATION:
+            reviews["cleanedTokens"] = reviews["cleanedTokens"].apply(PreProcessor.lemmatize_words)
+
+        logger.info("Vectorizing reviews.")
+        if properties.vectorization_strategy == VectorizationStrategy.TF_IDF:
+            reviews["cleanedReview"] = reviews["cleanedTokens"].apply(lambda tokens: " ".join(tokens))
+            review_vectors = PreProcessor.get_tf_idf_vectorization(reviews["cleanedReview"])
+
+        hstack_args = [reviews[feature].values[:, None] for feature in properties.training_features]
+        x_data = hstack([review_vectors, *hstack_args])
+        y_data = reviews["vote_std"]
+
+        return x_data, y_data
 
     @staticmethod
     def clean_text(text: str, lowercase_text: bool = True, remove_punctuation: bool = True,
