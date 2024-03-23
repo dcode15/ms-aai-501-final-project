@@ -1,5 +1,7 @@
 .idea/
 
 data/Software.json
+data/Software_Full.jsonl
+data/Software_Metadata.jsonl
 
 *.pyc

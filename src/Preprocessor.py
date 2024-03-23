@@ -1,8 +1,11 @@
+import importlib
 import string
 from typing import List, Any, Tuple
 
 import nltk
 import pandas as pd
+from gensim.models import Word2Vec
+from keras.preprocessing.sequence import pad_sequences
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.tokenize import word_tokenize
@@ -25,8 +28,7 @@ class Preprocessor:
 
     @staticmethod
     def preprocess_reviews(properties_file: str) -> Tuple:
-        import properties_template as properties
-        # properties = importlib.import_module(properties_file)
+        properties = importlib.import_module(properties_file)
 
         logger.info("Loading data.")
         reviews = pd.read_json(properties.data_file_path, lines=True)
@@ -44,15 +46,24 @@ class Preprocessor:
             reviews["cleanedTokens"] = reviews["cleanedTokens"].apply(Preprocessor.lemmatize_words)
 
         logger.info("Vectorizing reviews.")
+        y_data = reviews["vote_std"]
         if properties.vectorization_strategy == VectorizationStrategy.TF_IDF:
             reviews["cleanedReview"] = reviews["cleanedTokens"].apply(lambda tokens: " ".join(tokens))
             review_vectors = Preprocessor.get_tf_idf_vectorization(reviews["cleanedReview"])
-
-        hstack_args = [reviews[feature].values[:, None] for feature in properties.training_features]
-        x_data = hstack([review_vectors, *hstack_args])
-        y_data = reviews["vote_std"]
-
-        return x_data, y_data
+            reviews.drop("cleanedReview", axis=1)
+            hstack_args = [reviews[feature].values[:, None] for feature in properties.training_features]
+            x_data = hstack([review_vectors, *hstack_args])
+            return x_data, y_data
+        elif properties.vectorization_strategy == VectorizationStrategy.WORD_2_VEC:
+            w2v_model = Word2Vec(sentences=reviews["cleanedTokens"], vector_size=100, window=5, min_count=1, workers=4)
+            review_vectors = []
+            for reviewTokens in reviews["cleanedTokens"]:
+                review_vectors.append([w2v_model.wv[token] for token in reviewTokens if token in w2v_model.wv])
+            max_length = max(len(review) for review in review_vectors)
+            review_vectors = pad_sequences(review_vectors, maxlen=max_length, padding='post', dtype='float32',
+                                           value=0.0)
+            x_data = reviews[[*properties.training_features]].values
+            return review_vectors, x_data, y_data
 
     @staticmethod
     def clean_text(text: str, lowercase_text: bool = True, remove_punctuation: bool = True,
@@ -128,7 +139,7 @@ class Preprocessor:
             required_fields = ["reviewText"]
 
         reviews = reviews.dropna(subset=required_fields, how="any")
-        reviews.loc[:, "verified"] = reviews["verified"].astype(int)
+        reviews["verified"] = reviews["verified"].astype(int)
         reviews.loc[:, "vote"] = (reviews["vote"]
                                   .str.replace(",", "")
                                   .fillna(0)

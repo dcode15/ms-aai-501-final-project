@@ -13,3 +13,4 @@ class TextNormalizationStrategy(Enum):
 
 class VectorizationStrategy(Enum):
     TF_IDF = 1
+    WORD_2_VEC = 2

@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from Preprocessor import Preprocessor
 from get_logger import logger
 
-x, y = Preprocessor.preprocess_reviews("properties_template.py")
+x, y = Preprocessor.preprocess_reviews("properties_template")
 
 logger.info("Training model.")
 X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=1)
