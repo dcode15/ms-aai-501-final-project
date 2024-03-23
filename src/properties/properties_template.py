@@ -1,4 +1,4 @@
-from PropertyEnums import TokenizationType, TextNormalizationStrategy, VectorizationStrategy
+from properties.enums import TokenizationType, TextNormalizationStrategy, VectorizationStrategy
 
 data_file_path = "../data/Software_5-core.json"
 lowercase_text = True

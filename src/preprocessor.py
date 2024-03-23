@@ -12,7 +12,7 @@ from nltk.tokenize import word_tokenize
 from scipy.sparse import hstack
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from PropertyEnums import TextNormalizationStrategy, VectorizationStrategy
+from properties.enums import TextNormalizationStrategy, VectorizationStrategy
 from get_logger import logger
 
 pd.options.mode.chained_assignment = None
@@ -28,6 +28,22 @@ class Preprocessor:
 
     @staticmethod
     def preprocess_reviews(properties_file: str) -> Tuple:
+        """
+        Preprocesses review data for sentiment analysis or other NLP tasks based on specified properties.
+        This method involves several steps:
+        1. Loading review data from a JSON file specified in the properties module.
+        2. Cleaning and normalizing the review text and votes.
+        3. Applying text normalization strategies such as stemming or lemmatization.
+        4. Vectorizing the preprocessed review texts based on the specified vectorization strategy (TF-IDF or Word2Vec).
+
+        :param properties_file: The name of the properties file (without the .py)
+        :return: Depending on the vectorization strategy specified in the properties, this method returns:
+        - For TF-IDF: A tuple (x_data, y_data) where `x_data` is a sparse matrix of TF-IDF vectorized texts concatenated
+          with other specified training features, and `y_data` contains the normalized vote scores.
+        - For Word2Vec: A tuple (review_vectors, x_data, y_data) where `review_vectors` are the padded sequences of
+          Word2Vec vectors for each review, `x_data` contains other specified training features, and `y_data` contains
+          the normalized vote scores.
+        """
         properties = importlib.import_module(properties_file)
 
         logger.info("Loading data.")
@@ -47,14 +63,14 @@ class Preprocessor:
 
         logger.info("Vectorizing reviews.")
         y_data = reviews["vote_std"]
-        if properties.vectorization_strategy == VectorizationStrategy.TF_IDF:
+        if properties.vectorization_strategy is VectorizationStrategy.TF_IDF:
             reviews["cleanedReview"] = reviews["cleanedTokens"].apply(lambda tokens: " ".join(tokens))
             review_vectors = Preprocessor.get_tf_idf_vectorization(reviews["cleanedReview"])
             reviews.drop("cleanedReview", axis=1)
             hstack_args = [reviews[feature].values[:, None] for feature in properties.training_features]
             x_data = hstack([review_vectors, *hstack_args])
             return x_data, y_data
-        elif properties.vectorization_strategy == VectorizationStrategy.WORD_2_VEC:
+        elif properties.vectorization_strategy is VectorizationStrategy.WORD_2_VEC:
             w2v_model = Word2Vec(sentences=reviews["cleanedTokens"], vector_size=100, window=5, min_count=1, workers=4)
             review_vectors = []
             for reviewTokens in reviews["cleanedTokens"]:

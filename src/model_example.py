@@ -4,10 +4,10 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
-from Preprocessor import Preprocessor
+from preprocessor import Preprocessor
 from get_logger import logger
 
-x, y = Preprocessor.preprocess_reviews("properties_template")
+x, y = Preprocessor.preprocess_reviews("properties.properties_template")
 
 logger.info("Training model.")
 X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=1)
