@@ -1,20 +1,13 @@
 from time import process_time
-import logging
 
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
-from PreProcessor import PreProcessor
+from Preprocessor import Preprocessor
+from get_logger import logger
 
-logging.basicConfig(
-    format="[%(levelname)s] %(asctime)s - %(module)s: %(message)s",
-    level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
-
-
-x, y = PreProcessor.preprocess_reviews("properties_template.py")
+x, y = Preprocessor.preprocess_reviews("properties_template.py")
 
 logger.info("Training model.")
 X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=1)
