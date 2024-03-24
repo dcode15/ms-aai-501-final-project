@@ -79,7 +79,7 @@ class Preprocessor:
             review_vectors = pad_sequences(review_vectors, maxlen=max_length, padding='post', dtype='float32',
                                            value=0.0)
             x_data = reviews[[*properties.training_features]].values
-            return review_vectors, x_data, y_data
+            return review_vectors.astype("float32"), x_data.astype("float32"), y_data.astype("float32")
 
     @staticmethod
     def clean_text(text: str, lowercase_text: bool = True, remove_punctuation: bool = True,
