@@ -11,6 +11,7 @@ from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.tokenize import word_tokenize
 from scipy.sparse import hstack
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
 
 from properties.enums import TextNormalizationStrategy, VectorizationStrategy
 from get_logger import logger
@@ -50,7 +51,7 @@ class Preprocessor:
         reviews = pd.read_json(properties.data_file_path, lines=True)
         logger.info("Cleaning data.")
         reviews = Preprocessor.clean_review_objects(reviews)
-        reviews = Preprocessor.normalize_votes(reviews)
+        reviews = Preprocessor.standardize_columns(reviews, ["vote", "reviewLength", "reviewAge"])
         reviews["cleanedTokens"] = reviews["reviewText"].apply(Preprocessor.clean_text,
                                                                lowercase_text=properties.lowercase_text,
                                                                remove_punctuation=properties.remove_punctuation,
@@ -62,7 +63,7 @@ class Preprocessor:
             reviews["cleanedTokens"] = reviews["cleanedTokens"].apply(Preprocessor.lemmatize_words)
 
         logger.info("Vectorizing reviews.")
-        y_data = reviews["vote_std"]
+        y_data = reviews["voteStd"]
         if properties.vectorization_strategy is VectorizationStrategy.TF_IDF:
             reviews["cleanedReview"] = reviews["cleanedTokens"].apply(lambda tokens: " ".join(tokens))
             review_vectors = Preprocessor.get_tf_idf_vectorization(reviews["cleanedReview"])
@@ -169,15 +170,16 @@ class Preprocessor:
         return reviews
 
     @staticmethod
-    def normalize_votes(reviews: pd.DataFrame) -> pd.DataFrame:
+    def standardize_columns(reviews: pd.DataFrame, columns_to_standardize: List[str]) -> pd.DataFrame:
         """
         Normalizes 'vote' scores within each product group in a DataFrame.
 
         :param reviews: DataFrame with 'asin' for product IDs and 'vote' for scores.
         :return: Modified DataFrame with an added 'vote_std' column for normalized vote scores.
         """
-        std_devs = reviews.groupby("asin")["vote"].transform("std")
-        df_filtered = reviews[std_devs > 0].copy()
-        df_filtered.loc[:, "vote_std"] = df_filtered.groupby("asin")["vote"].transform(
-            lambda x: (x - x.mean()) / x.std())
-        return df_filtered
+        scaler = StandardScaler()
+
+        for column in columns_to_standardize:
+            reviews[f"{column}Std"] = scaler.fit_transform(reviews[[column]])
+
+        return reviews
