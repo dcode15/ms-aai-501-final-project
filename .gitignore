@@ -1,4 +1,5 @@
 .idea/
+src/out
 
 data/Software.json
 data/Software_Full.jsonl
