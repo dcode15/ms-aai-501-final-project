@@ -1,20 +1,15 @@
-import importlib
 import string
-from typing import List, Any, Tuple
+from typing import List
 
 import nltk
 import pandas as pd
-from gensim.models import Word2Vec
-from keras.preprocessing.sequence import pad_sequences
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.tokenize import word_tokenize
-from scipy.sparse import hstack
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler
 
-from properties.enums import TextNormalizationStrategy, VectorizationStrategy
 from get_logger import logger
+from enums import TextNormalizationStrategy, TokenizationStrategy
 
 pd.options.mode.chained_assignment = None
 
@@ -28,59 +23,51 @@ class Preprocessor:
     nltk.download("punkt", quiet=True)
 
     @staticmethod
-    def preprocess_reviews(properties_file: str) -> Tuple:
+    def preprocess_reviews(reviews: pd.DataFrame, lowercase_text=True, remove_punctuation=True,
+                           remove_stopwords=True, tokenization_strategy=TokenizationStrategy.NONE,
+                           text_normalization_strategy=TextNormalizationStrategy.NONE) -> pd.DataFrame:
         """
-        Preprocesses review data for sentiment analysis or other NLP tasks based on specified properties.
-        This method involves several steps:
-        1. Loading review data from a JSON file specified in the properties module.
-        2. Cleaning and normalizing the review text and votes.
-        3. Applying text normalization strategies such as stemming or lemmatization.
-        4. Vectorizing the preprocessed review texts based on the specified vectorization strategy (TF-IDF or Word2Vec).
+        Preprocesses a DataFrame of reviews, performing various cleaning and normalization steps.
 
-        :param properties_file: The name of the properties file (without the .py)
-        :return: Depending on the vectorization strategy specified in the properties, this method returns:
-        - For TF-IDF: A tuple (x_data, y_data) where `x_data` is a sparse matrix of TF-IDF vectorized texts concatenated
-          with other specified training features, and `y_data` contains the normalized vote scores.
-        - For Word2Vec: A tuple (review_vectors, x_data, y_data) where `review_vectors` are the padded sequences of
-          Word2Vec vectors for each review, `x_data` contains other specified training features, and `y_data` contains
-          the normalized vote scores.
+        The function performs the following operations:
+        1. Cleans the review objects by dropping missing values, converting fields to appropriate data types,
+        and adding a new reviewAge and reviewLength fields.
+        2. Standardizes certain columns (e.g., 'vote', 'reviewLength', 'reviewAge') for uniformity.
+        3. Applies text cleaning to the 'reviewText' column, including optional lowercase conversion, punctuation removal,
+           and stopwords removal based on the parameters provided.
+        4. Depending on the `text_normalization_strategy`, it may apply stemming or lemmatization to the text
+           to reduce words to their base or dictionary form.
+        5. If `tokenization_strategy` is not NONE, the cleaned review texts are left tokenized; otherwise, they are
+           joined back into strings.
+
+        :param reviews: A DataFrame containing the reviews to preprocess. Must include a 'reviewText' column.
+        :param lowercase_text: If True, converts all characters in the review text to lowercase. Defaults to True.
+        :param remove_punctuation: If True, removes all punctuation characters from the review text. Defaults to True.
+        :param remove_stopwords: If True, removes common stopwords from the review text. Defaults to True.
+        :param tokenization_strategy: Specifies the strategy for tokenizing the text. The default
+                                      value, TokenizationStrategy.NONE, means no tokenization is applied post-cleaning.
+        :param text_normalization_strategy: Specifies the strategy for normalizing the text,
+                                            either through stemming or lemmatization. The default value,
+                                            TextNormalizationStrategy.NONE, applies no normalization.
+        :return: The input DataFrame with an additional 'cleanedReviewText' column containing the preprocessed text.
         """
-        properties = importlib.import_module(properties_file)
-
-        logger.info("Loading data.")
-        reviews = pd.read_json(properties.data_file_path, lines=True)
-        logger.info("Cleaning data.")
+        logger.info("Preprocessing data.")
         reviews = Preprocessor.clean_review_objects(reviews)
         reviews = Preprocessor.standardize_columns(reviews, ["vote", "reviewLength", "reviewAge"])
-        reviews["cleanedTokens"] = reviews["reviewText"].apply(Preprocessor.clean_text,
-                                                               lowercase_text=properties.lowercase_text,
-                                                               remove_punctuation=properties.remove_punctuation,
-                                                               remove_stopwords=properties.remove_stopwords)
+        reviews["cleanedReviewText"] = reviews["reviewText"].apply(Preprocessor.clean_text,
+                                                                   lowercase_text=lowercase_text,
+                                                                   remove_punctuation=remove_punctuation,
+                                                                   remove_stopwords=remove_stopwords)
 
-        if properties.text_normalization_strategy == TextNormalizationStrategy.STEMMING:
-            reviews["cleanedTokens"] = reviews["cleanedTokens"].apply(Preprocessor.stem_words)
-        elif properties.text_normalization_strategy == TextNormalizationStrategy.LEMMATIZATION:
-            reviews["cleanedTokens"] = reviews["cleanedTokens"].apply(Preprocessor.lemmatize_words)
+        if text_normalization_strategy is TextNormalizationStrategy.STEMMING:
+            reviews["cleanedReviewText"] = reviews["cleanedReviewText"].apply(Preprocessor.stem_words)
+        elif text_normalization_strategy is TextNormalizationStrategy.LEMMATIZATION:
+            reviews["cleanedReviewText"] = reviews["cleanedReviewText"].apply(Preprocessor.lemmatize_words)
 
-        logger.info("Vectorizing reviews.")
-        y_data = reviews["voteStd"]
-        if properties.vectorization_strategy is VectorizationStrategy.TF_IDF:
-            reviews["cleanedReview"] = reviews["cleanedTokens"].apply(lambda tokens: " ".join(tokens))
-            review_vectors = Preprocessor.get_tf_idf_vectorization(reviews["cleanedReview"])
-            reviews.drop("cleanedReview", axis=1)
-            hstack_args = [reviews[feature].values[:, None] for feature in properties.training_features]
-            x_data = hstack([review_vectors, *hstack_args])
-            return x_data, y_data
-        elif properties.vectorization_strategy is VectorizationStrategy.WORD_2_VEC:
-            w2v_model = Word2Vec(sentences=reviews["cleanedTokens"], vector_size=100, window=5, min_count=1, workers=4)
-            review_vectors = []
-            for reviewTokens in reviews["cleanedTokens"]:
-                review_vectors.append([w2v_model.wv[token] for token in reviewTokens if token in w2v_model.wv])
-            max_length = max(len(review) for review in review_vectors)
-            review_vectors = pad_sequences(review_vectors, maxlen=max_length, padding='post', dtype='float32',
-                                           value=0.0)
-            x_data = reviews[[*properties.training_features]].values
-            return review_vectors.astype("float32"), x_data.astype("float32"), y_data.astype("float32")
+        if tokenization_strategy is TokenizationStrategy.NONE:
+            reviews["cleanedReviewText"] = reviews["cleanedReviewText"].apply(lambda tokens: " ".join(tokens))
+
+        return reviews
 
     @staticmethod
     def clean_text(text: str, lowercase_text: bool = True, remove_punctuation: bool = True,
@@ -132,24 +119,14 @@ class Preprocessor:
         return [stemmer.stem(word) for word in words]
 
     @staticmethod
-    def get_tf_idf_vectorization(documents: List[str]) -> Any:
-        """
-        Get the TF-IDF vectorization of the given documents.
-
-        :param documents: The list of documents to be vectorized.
-        :return: The TF-IDF vectorization of the documents.
-        """
-        tfidf_vectorizer = TfidfVectorizer(lowercase=False, analyzer="word")
-        return tfidf_vectorizer.fit_transform(documents)
-
-    @staticmethod
     def clean_review_objects(reviews: pd.DataFrame, required_fields=None) -> pd.DataFrame:
         """
-        Clean the review objects by dropping missing values, converting fields to appropriate data types,
-        and adding a new field for review length.
+        Cleans a DataFrame of review objects by performing various data cleaning operations,
+        including handling missing values, type conversions, and generating new features.
 
-        :param reviews: The DataFrame containing the review objects.
-        :param required_fields: The list of required fields. Rows with null values for a required field will be dropped. Defaults to ["reviewText"].
+        :param reviews: The DataFrame containing review data that needs to be cleaned.
+        :param required_fields: A list of column names considered essential for a review to be valid.
+                                Defaults to ["reviewText"] if not provided.
         :return: The cleaned DataFrame of review objects.
         """
         if required_fields is None:
@@ -172,11 +149,15 @@ class Preprocessor:
     @staticmethod
     def standardize_columns(reviews: pd.DataFrame, columns_to_standardize: List[str]) -> pd.DataFrame:
         """
-        Normalizes 'vote' scores within each product group in a DataFrame.
+        Standardizes specified columns in the given DataFrame by applying z-score normalization to the specified columns.
+        This transforms the data in the column to have a mean of 0 and a standard deviation of 1.
 
-        :param reviews: DataFrame with 'asin' for product IDs and 'vote' for scores.
-        :return: Modified DataFrame with an added 'vote_std' column for normalized vote scores.
+        :param reviews: The DataFrame containing the data to be standardized.
+        :param columns_to_standardize: A list of column names in the DataFrame that should be standardized.
+        :return: The original DataFrame with additional columns for each standardized column. The names of these
+                 new columns are the original column names suffixed with 'Std'.
         """
+
         scaler = StandardScaler()
 
         for column in columns_to_standardize:

@@ -43,5 +43,5 @@ mae = mean_absolute_error(y_test, predictions)
 logger.info(f"MSE: {mse}")
 logger.info(f"MAE: {mae}")
 
-# GBR best result: 0.21/0.11
+# GBR best result: 0.220/0.116
 # RNN best result: 0.18/0.14

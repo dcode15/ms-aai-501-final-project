@@ -1,8 +1,9 @@
 from enum import Enum
 
 
-class TokenizationType(Enum):
+class TokenizationStrategy(Enum):
     WORD = 1
+    NONE = 2
 
 
 class TextNormalizationStrategy(Enum):
