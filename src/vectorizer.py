@@ -5,6 +5,8 @@ from gensim.models import Word2Vec
 from keras.preprocessing.sequence import pad_sequences
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from get_logger import logger
+
 
 class Vectorizer:
     """
@@ -20,6 +22,7 @@ class Vectorizer:
         :return: The transformed TF-IDF feature vectors as a sparse matrix. The exact type can vary depending
                  on the output of `TfidfVectorizer.fit_transform`.
         """
+        logger.info("Generating TF-IDF vectors.")
         tfidf_vectorizer = TfidfVectorizer(lowercase=False, analyzer="word")
         return tfidf_vectorizer.fit_transform(documents)
 
@@ -36,6 +39,7 @@ class Vectorizer:
                  'object', with each element being a variable-length array of embeddings.
 
         """
+        logger.info("Generating Word2Vec embeddings.")
         w2v_model = Word2Vec(sentences=documents, vector_size=100, window=5, min_count=1, workers=4)
         review_vectors = []
         for document in documents:
