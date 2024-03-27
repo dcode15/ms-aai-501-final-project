@@ -1,5 +1,11 @@
 .idea/
+src/out
 
 data/Software.json
+data/Software_Full.jsonl
+data/Software_Metadata.jsonl
+
+src/properties/properties*
+!src/properties/properties_template.py
 
 *.pyc
