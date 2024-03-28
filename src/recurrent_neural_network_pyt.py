@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -74,12 +75,24 @@ for epoch in range(num_epochs):
     logger.info(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}")
 
 logger.info("Testing model.")
-review_vectors_test = torch.tensor(review_vectors_test, dtype=torch.float32).to(device)
-x_test = torch.tensor(x_test.values, dtype=torch.float32).to(device)
-with torch.no_grad():
-    predictions = model(review_vectors_test, x_test)
 
-mse = mean_squared_error(y_test, predictions.cpu().numpy())
-mae = mean_absolute_error(y_test, predictions.cpu().numpy())
+review_vectors_test_tensor = torch.tensor(review_vectors_test, dtype=torch.float32)
+x_test_tensor = torch.tensor(x_test.values, dtype=torch.float32)
+
+predictions = []
+with torch.no_grad():
+    for i in range(0, len(review_vectors_test_tensor), batch_size):
+        batch_review_vectors_test = review_vectors_test_tensor[i:i + batch_size].to(device)
+        batch_x_test = x_test_tensor[i:i + batch_size].to(device)
+
+        batch_predictions = model(batch_review_vectors_test, batch_x_test)
+        predictions.append(batch_predictions.cpu().numpy())
+
+
+predictions = np.concatenate(predictions, axis=0)
+
+mse = mean_squared_error(y_test[:len(predictions)], predictions)
+mae = mean_absolute_error(y_test[:len(predictions)], predictions)
+
 logger.info(f"MSE: {mse}")
 logger.info(f"MAE: {mae}")
