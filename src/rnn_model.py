@@ -53,9 +53,9 @@ class RNNModel:
                 batch_x_test = x_test_tensor[i:i + batch_size].to(self.device)
 
                 batch_predictions = self.model(batch_review_vectors_test, batch_x_test)
-                predictions.append(batch_predictions.cpu().numpy())
+                predictions.append(batch_predictions.cpu())
 
-        predictions = np.concatenate(predictions, axis=0)
+        predictions = torch.cat([prediction.flatten() for prediction in predictions]).numpy()
 
         mse = mean_squared_error(y_data[:len(predictions)], predictions)
         mae = mean_absolute_error(y_data[:len(predictions)], predictions)
