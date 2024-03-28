@@ -1,8 +1,9 @@
-from typing import List, Any
+from typing import List
 
 import numpy as np
 from gensim.models import Word2Vec
 from keras.preprocessing.sequence import pad_sequences
+from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from get_logger import logger
@@ -14,13 +15,12 @@ class Vectorizer:
     """
 
     @staticmethod
-    def get_tf_idf_vectors(documents: List[str]) -> Any:
+    def get_tf_idf_vectors(documents: List[str]) -> csr_matrix:
         """
         Transforms a list of text documents into TF-IDF feature vectors.
 
         :param documents: A list of text documents to be vectorized.
-        :return: The transformed TF-IDF feature vectors as a sparse matrix. The exact type can vary depending
-                 on the output of `TfidfVectorizer.fit_transform`.
+        :return: The transformed TF-IDF feature vectors as a sparse matrix.
         """
         logger.info("Generating TF-IDF vectors.")
         tfidf_vectorizer = TfidfVectorizer(lowercase=False, analyzer="word")

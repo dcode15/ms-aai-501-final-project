@@ -1,3 +1,6 @@
+from typing import Tuple
+
+import nni
 import numpy as np
 import torch
 import torch.nn as nn
@@ -7,13 +10,18 @@ from get_logger import logger
 
 
 class RNNModel:
-    def __init__(self, vector_size, num_other_features):
+    def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = RNNModule(vector_size, num_other_features).to(self.device)
-        self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters())
+        self.model = None
+        self.criterion = None
+        self.optimizer = None
 
-    def train(self, review_vectors, x_data, y_data, num_epochs=10, batch_size=32):
+    def train(self, review_vectors, x_data, y_data, config, num_epochs=10, batch_size=32):
+        logger.info("Training RNN model.")
+        self.model = RNNModule(review_vectors.shape[2], x_data.shape[1], config).to(self.device)
+        self.criterion = nn.MSELoss()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config["learning_rate"])
+
         for epoch in range(num_epochs):
             for i in range(0, len(review_vectors), batch_size):
                 batch_review_vectors = review_vectors[i:i + batch_size]
@@ -31,8 +39,10 @@ class RNNModel:
                 self.optimizer.step()
 
             logger.info(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}")
+            nni.report_intermediate_result(loss.item())
 
-    def test(self, review_vectors, x_data, y_data, batch_size=32):
+    def test(self, review_vectors, x_data, y_data, batch_size=32) -> Tuple:
+        logger.info("Testing RNN model.")
         review_vectors_test_tensor = torch.tensor(review_vectors, dtype=torch.float32)
         x_test_tensor = torch.tensor(x_data.values, dtype=torch.float32)
 
@@ -53,15 +63,17 @@ class RNNModel:
         logger.info(f"MSE: {mse}")
         logger.info(f"MAE: {mae}")
 
+        return mse, mae
+
 
 class RNNModule(nn.Module):
-    def __init__(self, vector_size, num_other_features):
+    def __init__(self, vector_size, num_other_features, config):
         super(RNNModule, self).__init__()
-        self.lstm = nn.LSTM(vector_size, 50, batch_first=True, dropout=0.25)
-        self.dropout = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(50 + num_other_features, 100)
+        self.lstm = nn.LSTM(vector_size, config["lstm_size"], batch_first=True)
+        self.dropout = nn.Dropout(config["dropout"])
+        self.fc1 = nn.Linear(config["lstm_size"] + num_other_features, config["hidden_layer_size"])
         self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(100, 1)
+        self.fc2 = nn.Linear(config["hidden_layer_size"], 1)
 
     def forward(self, text_input, other_features_input):
         _, (hidden_state, _) = self.lstm(text_input)
@@ -69,5 +81,4 @@ class RNNModule(nn.Module):
         concatenated = torch.cat((hidden_state, other_features_input), dim=1)
         fc_input = self.dropout(concatenated)
         fc_output = self.relu(self.fc1(fc_input))
-        output = self.fc2(fc_output)
-        return output
+        return self.fc2(fc_output).squeeze()

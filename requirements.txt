@@ -8,3 +8,4 @@ gensim==4.3.2
 keras==3.1.1
 keras-tuner==1.4.7
 torch==2.2.2
+nni==3.0.0
