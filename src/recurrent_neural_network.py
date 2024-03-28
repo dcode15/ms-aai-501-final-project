@@ -40,6 +40,18 @@ else:
 
 model = RNNModel()
 model.train(review_vectors_train, x_train, y_train,
-            config=hyperparams)
-mse, _ = model.test(review_vectors_test, x_test, y_test)
+            config=hyperparams, num_epochs=5)
+mse, _, predictions = model.test(review_vectors_test, x_test, y_test)
+
+top_reviews, bottom_reviews = model.get_top_bottom_results(reviews, review_vectors_test, x_test, y_test)
+print("Top reviews:")
+for review in top_reviews:
+    print("--------------------------------------------------------------\n")
+    print(f"{review}\n\n")
+
+print("Bottom reviews:")
+for review in bottom_reviews:
+    print("--------------------------------------------------------------\n")
+    print(f"{review}\n\n")
+
 nni.report_final_result(mse)

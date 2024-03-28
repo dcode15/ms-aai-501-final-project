@@ -1,7 +1,7 @@
 from typing import Tuple
 
 import nni
-import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -63,7 +63,19 @@ class RNNModel:
         logger.info(f"MSE: {mse}")
         logger.info(f"MAE: {mae}")
 
-        return mse, mae
+        return mse, mae, predictions
+
+    def get_top_bottom_results(self, reviews, review_vectors, x_data, y_data, result_count=3) -> Tuple:
+        x_data["reviewAgeStd"] = 0
+        _, _, predictions = self.test(review_vectors, x_data, y_data)
+        reviews_with_predictions = pd.DataFrame({
+            "reviewText": reviews.iloc[x_data.index]["reviewText"],
+            "voteStd": predictions
+        })
+        reviews_with_predictions = reviews_with_predictions.sort_values("voteStd", ascending=False)
+
+        return reviews_with_predictions['reviewText'].head(result_count).values, reviews_with_predictions[
+            'reviewText'].tail(result_count).values,
 
 
 class RNNModule(nn.Module):
