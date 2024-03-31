@@ -32,10 +32,11 @@ if optimized_params:
     hyperparams = optimized_params
 else:
     hyperparams = {
-        "dropout": 0.2,
-        "lstm_size": 128,
-        "hidden_layer_size": 128,
-        "learning_rate": 1e-3
+        "dropout": 0.005,
+        "lstm_size": 64,
+        "hidden_layer_size": 32,
+        "learning_rate": 0.0005,
+        "num_hidden_layers": 1
     }
 
 model = RNNModel()
