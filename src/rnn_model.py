@@ -82,15 +82,24 @@ class RNNModule(nn.Module):
     def __init__(self, vector_size, num_other_features, config):
         super(RNNModule, self).__init__()
         self.lstm = nn.LSTM(vector_size, config["lstm_size"], batch_first=True)
-        self.dropout = nn.Dropout(config["dropout"])
-        self.fc1 = nn.Linear(config["lstm_size"] + num_other_features, config["hidden_layer_size"])
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(config["hidden_layer_size"], 1)
+
+        num_hidden_layers = config.get("num_hidden_layers", 1)
+        hidden_layer_size = config.get("hidden_layer_size", 64)
+        dropout_rate = config.get("dropout", 0.5)
+
+        layers = [nn.Linear(config["lstm_size"] + num_other_features, hidden_layer_size), nn.ReLU(),
+                  nn.Dropout(dropout_rate)]
+
+        for _ in range(num_hidden_layers - 1):
+            layers += [nn.Linear(hidden_layer_size, hidden_layer_size), nn.ReLU(), nn.Dropout(dropout_rate)]
+
+        self.hidden_layers = nn.Sequential(*layers)
+
+        self.fc_out = nn.Linear(hidden_layer_size, 1)
 
     def forward(self, text_input, other_features_input):
         _, (hidden_state, _) = self.lstm(text_input)
         hidden_state = hidden_state.squeeze(0)
         concatenated = torch.cat((hidden_state, other_features_input), dim=1)
-        fc_input = self.dropout(concatenated)
-        fc_output = self.relu(self.fc1(fc_input))
-        return self.fc2(fc_output).squeeze()
+        fc_output = self.hidden_layers(concatenated)
+        return self.fc_out(fc_output).squeeze()
