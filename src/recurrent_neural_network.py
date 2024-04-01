@@ -36,12 +36,14 @@ else:
         "lstm_size": 64,
         "hidden_layer_size": 32,
         "learning_rate": 0.0005,
-        "num_hidden_layers": 1
+        "num_hidden_layers": 1,
+        "num_epochs": 3,
+        "weight_decay": 1e-3
     }
 
 model = RNNModel()
 model.train(review_vectors_train, x_train, y_train,
-            config=hyperparams, num_epochs=5)
+            config=hyperparams, num_epochs=hyperparams["num_epochs"])
 mse, _, predictions = model.test(review_vectors_test, x_test, y_test)
 
 top_reviews, bottom_reviews = model.get_top_bottom_results(reviews, review_vectors_test, x_test, y_test)

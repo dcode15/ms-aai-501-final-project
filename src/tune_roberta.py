@@ -69,4 +69,4 @@ trainer = Trainer(
 )
 
 trainer.train()
-model.save_pretrained('../models/fine_tuned_roberta')
+model.save_pretrained('../models/fine_tuned_distilroberta')

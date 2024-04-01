@@ -20,7 +20,8 @@ class RNNModel:
         logger.info("Training RNN model.")
         self.model = RNNModule(review_vectors.shape[2], x_data.shape[1], config).to(self.device)
         self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config["learning_rate"])
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config["learning_rate"],
+                                          weight_decay=config["weight_decay"])
 
         for epoch in range(num_epochs):
             for i in range(0, len(review_vectors), batch_size):
@@ -74,8 +75,8 @@ class RNNModel:
         })
         reviews_with_predictions = reviews_with_predictions.sort_values("voteStd", ascending=False)
 
-        return reviews_with_predictions['reviewText'].head(result_count).values, reviews_with_predictions[
-            'reviewText'].tail(result_count).values,
+        return reviews_with_predictions["reviewText"].head(result_count).values, reviews_with_predictions[
+            "reviewText"].tail(result_count).values,
 
 
 class RNNModule(nn.Module):

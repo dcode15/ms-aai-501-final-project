@@ -3,7 +3,6 @@ import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
 
-from enums import TextNormalizationStrategy, TokenizationStrategy
 from get_logger import logger
 from preprocessor import Preprocessor
 from transformer_model import TransformerModel
@@ -15,13 +14,13 @@ original_data_path = "../data/Software_5-core.json"
 
 logger.info(f"Reading data from {original_data_path}")
 reviews = pd.read_json(original_data_path, lines=True)
-reviews = Preprocessor.preprocess_reviews(reviews, tokenization_strategy=TokenizationStrategy.NONE,
-                                          text_normalization_strategy=TextNormalizationStrategy.NONE)
+reviews = Preprocessor.clean_review_objects(reviews)
+reviews = Preprocessor.standardize_columns(reviews, ["vote", "reviewLength", "reviewAge"])
 
 x_data = reviews[["verified", "reviewLengthStd", "reviewAgeStd"]]
 y_data = reviews["voteStd"]
 
-reviews_train, reviews_test, y_train, y_test = train_test_split(reviews["cleanedReviewText"], y_data, test_size=0.25,
+reviews_train, reviews_test, y_train, y_test = train_test_split(reviews["reviewText"], y_data, test_size=0.25,
                                                                 random_state=1)
 x_train, x_test, _, _ = train_test_split(x_data, y_data, test_size=0.25, random_state=1)
 
@@ -30,26 +29,28 @@ if optimized_params:
     hyperparams = optimized_params
 else:
     hyperparams = {
-        "dropout": 0.2,
+        "dropout": 0,
+        "learning_rate": 0.0005,
         "hidden_layer_size": 128,
-        "learning_rate": 1e-5,
-        "num_other_features": 3
+        "num_hidden_layers": 11,
+        "num_epochs": 3,
+        "weight_decay": 0
     }
 
 model = TransformerModel()
-model.train(reviews_train, x_train, y_train,
-            config=hyperparams, num_epochs=3)
-mse, _, predictions = model.test(reviews_test, x_test, y_test)
+model.train(reviews_train.copy(), x_train, y_train,
+            config=hyperparams, num_epochs=hyperparams["num_epochs"])
+mse, _, predictions = model.test(reviews_test.copy(), x_test, y_test)
 
 top_reviews, bottom_reviews = model.get_top_bottom_results(reviews_test, x_test, y_test)
 print("Top reviews:")
 for review in top_reviews:
     print("--------------------------------------------------------------\n")
-print(f"{review}\n\n")
+    print(f"{review}\n\n")
 
 print("Bottom reviews:")
 for review in bottom_reviews:
     print("--------------------------------------------------------------\n")
-print(f"{review}\n\n")
+    print(f"{review}\n\n")
 
 nni.report_final_result(mse)
