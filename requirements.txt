@@ -10,3 +10,4 @@ keras-tuner==1.4.7
 torch==2.2.2
 nni==3.0.0
 transformers==4.39.2
+transformers[torch]==4.39.2

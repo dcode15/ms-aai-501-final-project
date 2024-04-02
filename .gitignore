@@ -1,5 +1,10 @@
 .idea/
+
+out/
+logs/
 src/out
+src/logs
+src/results
 
 data/Software.json
 data/Software_Full.jsonl
