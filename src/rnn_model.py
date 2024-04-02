@@ -82,11 +82,13 @@ class RNNModel:
 class RNNModule(nn.Module):
     def __init__(self, vector_size, num_other_features, config):
         super(RNNModule, self).__init__()
-        self.lstm = nn.LSTM(vector_size, config["lstm_size"], batch_first=True)
 
+        num_lstm_layers = config.get("num_lstm_layers", 1)
         num_hidden_layers = config.get("num_hidden_layers", 1)
         hidden_layer_size = config.get("hidden_layer_size", 64)
         dropout_rate = config.get("dropout", 0.5)
+
+        self.lstm = nn.LSTM(vector_size, config["lstm_size"], num_layers=num_lstm_layers, batch_first=True)
 
         layers = [nn.Linear(config["lstm_size"] + num_other_features, hidden_layer_size), nn.ReLU(),
                   nn.Dropout(dropout_rate)]
@@ -100,7 +102,7 @@ class RNNModule(nn.Module):
 
     def forward(self, text_input, other_features_input):
         _, (hidden_state, _) = self.lstm(text_input)
-        hidden_state = hidden_state.squeeze(0)
+        hidden_state = hidden_state[-1]
         concatenated = torch.cat((hidden_state, other_features_input), dim=1)
         fc_output = self.hidden_layers(concatenated)
         return self.fc_out(fc_output).squeeze()

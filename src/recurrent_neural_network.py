@@ -38,7 +38,8 @@ else:
         "learning_rate": 0.0005,
         "num_hidden_layers": 1,
         "num_epochs": 3,
-        "weight_decay": 1e-3
+        "weight_decay": 1e-3,
+        "num_lstm_layers": 2
     }
 
 model = RNNModel()
