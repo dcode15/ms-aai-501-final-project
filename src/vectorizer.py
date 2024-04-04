@@ -47,7 +47,7 @@ class Vectorizer:
 
         if pad_vectors:
             max_length = max(len(review) for review in review_vectors)
-            return pad_sequences(review_vectors, maxlen=max_length, padding='post', dtype='float32',
+            return pad_sequences(review_vectors, maxlen=max_length, padding="post", dtype="float32",
                                  value=0.0)
         else:
             np.array(review_vectors, dtype=object)

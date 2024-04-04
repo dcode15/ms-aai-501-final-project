@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 
 import nni
 import pandas as pd
@@ -18,7 +18,7 @@ class TransformerModel:
         self.optimizer = None
         self.tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
-    def train(self, reviews, x_data, y_data, config, num_epochs=10, batch_size=128):
+    def train(self, reviews, x_data, y_data, config, num_epochs=10, batch_size=128) -> None:
         logger.info("Training Transformer model.")
         self.model = TransformerModule(x_data.shape[1], config).to(self.device)
         self.criterion = nn.MSELoss()
@@ -42,10 +42,10 @@ class TransformerModel:
                 loss.backward()
                 self.optimizer.step()
 
-            logger.info(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}")
+            logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {loss.item():.4f}")
             nni.report_intermediate_result(loss.item())
 
-    def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple:
+    def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple[float, float, List]:
         logger.info("Testing Transformer model.")
         reviews_test = self.tokenizer(list(reviews), padding=True, truncation=True, return_tensors="pt")
         x_test_tensor = torch.tensor(x_data.values, dtype=torch.float32)
@@ -69,7 +69,8 @@ class TransformerModel:
 
         return mse, mae, predictions
 
-    def get_top_bottom_results(self, reviews, x_data, y_data, result_count=3) -> Tuple:
+    def get_top_bottom_results(self, reviews, x_data, y_data, result_count=3) -> Tuple[
+        List[str], List[str]]:
         logger.info("Getting top and bottom results.")
         x_data["reviewAgeStd"] = 0
         _, _, predictions = self.test(reviews.copy(), x_data, y_data)
@@ -86,8 +87,8 @@ class TransformerModel:
 class TransformerModule(nn.Module):
     def __init__(self, num_other_features, config):
         super(TransformerModule, self).__init__()
-        self.roberta = RobertaForSequenceClassification.from_pretrained("../models/fine_tuned_distilroberta",
-                                                                        num_labels=1)
+        self.roberta_model = RobertaForSequenceClassification.from_pretrained("../models/fine_tuned_distilroberta",
+                                                                              num_labels=1)
         num_hidden_layers = config.get("num_hidden_layers", 1)
         hidden_layer_size = config.get("hidden_layer_size", 64)
         dropout_rate = config.get("dropout", 0.5)
@@ -98,15 +99,15 @@ class TransformerModule(nn.Module):
         for _ in range(num_hidden_layers - 1):
             layers += [nn.Linear(hidden_layer_size, hidden_layer_size), nn.ReLU(), nn.Dropout(dropout_rate)]
 
-        self.hidden_layers = nn.Sequential(*layers)
+        self.fully_connected_layers = nn.Sequential(*layers)
 
-        self.fc_out = nn.Linear(hidden_layer_size, 1)
+        self.output_layer = nn.Linear(hidden_layer_size, 1)
 
-        for param in self.roberta.parameters():
-            param.requires_grad = False
+        for parameter in self.roberta_model.parameters():
+            parameter.requires_grad = False
 
-    def forward(self, text_input, other_features_input):
-        roberta_output = self.roberta(**text_input).logits
-        concatenated = torch.cat((roberta_output, other_features_input), dim=1)
-        fc_output = self.hidden_layers(concatenated)
-        return self.fc_out(fc_output).squeeze()
+    def forward(self, text_input, other_features_input) -> nn.Linear:
+        roberta_output = self.roberta_model(**text_input).logits
+        fully_connected_layers_input = torch.cat((roberta_output, other_features_input), dim=1)
+        fully_connected_layers_sequence = self.fully_connected_layers(fully_connected_layers_input)
+        return self.output_layer(fully_connected_layers_sequence).squeeze()

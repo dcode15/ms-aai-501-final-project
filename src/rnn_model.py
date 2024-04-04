@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 
 import nni
 import pandas as pd
@@ -16,7 +16,7 @@ class RNNModel:
         self.criterion = None
         self.optimizer = None
 
-    def train(self, review_vectors, x_data, y_data, config, num_epochs=10, batch_size=128):
+    def train(self, review_vectors, x_data, y_data, config, num_epochs=10, batch_size=128) -> None:
         logger.info("Training RNN model.")
         self.model = RNNModule(review_vectors.shape[2], x_data.shape[1], config).to(self.device)
         self.criterion = nn.MSELoss()
@@ -39,10 +39,10 @@ class RNNModel:
                 loss.backward()
                 self.optimizer.step()
 
-            logger.info(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}")
+            logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {loss.item():.4f}")
             nni.report_intermediate_result(loss.item())
 
-    def test(self, review_vectors, x_data, y_data, batch_size=128) -> Tuple:
+    def test(self, review_vectors, x_data, y_data, batch_size=128) -> Tuple[float, float, List]:
         logger.info("Testing RNN model.")
         review_vectors_test_tensor = torch.tensor(review_vectors, dtype=torch.float32)
         x_test_tensor = torch.tensor(x_data.values, dtype=torch.float32)
@@ -66,7 +66,8 @@ class RNNModel:
 
         return mse, mae, predictions
 
-    def get_top_bottom_results(self, reviews, review_vectors, x_data, y_data, result_count=3) -> Tuple:
+    def get_top_bottom_results(self, reviews, review_vectors, x_data, y_data, result_count=3) -> Tuple[
+        List[str], List[str]]:
         x_data["reviewAgeStd"] = 0
         _, _, predictions = self.test(review_vectors, x_data, y_data)
         reviews_with_predictions = pd.DataFrame({
@@ -88,7 +89,7 @@ class RNNModule(nn.Module):
         hidden_layer_size = config.get("hidden_layer_size", 64)
         dropout_rate = config.get("dropout", 0.5)
 
-        self.lstm = nn.LSTM(vector_size, config["lstm_size"], num_layers=num_lstm_layers, batch_first=True)
+        self.lstm_layers = nn.LSTM(vector_size, config["lstm_size"], num_layers=num_lstm_layers, batch_first=True)
 
         layers = [nn.Linear(config["lstm_size"] + num_other_features, hidden_layer_size), nn.ReLU(),
                   nn.Dropout(dropout_rate)]
@@ -96,13 +97,13 @@ class RNNModule(nn.Module):
         for _ in range(num_hidden_layers - 1):
             layers += [nn.Linear(hidden_layer_size, hidden_layer_size), nn.ReLU(), nn.Dropout(dropout_rate)]
 
-        self.hidden_layers = nn.Sequential(*layers)
+        self.fully_connected_layers = nn.Sequential(*layers)
 
-        self.fc_out = nn.Linear(hidden_layer_size, 1)
+        self.output_layer = nn.Linear(hidden_layer_size, 1)
 
-    def forward(self, text_input, other_features_input):
-        _, (hidden_state, _) = self.lstm(text_input)
-        hidden_state = hidden_state[-1]
-        concatenated = torch.cat((hidden_state, other_features_input), dim=1)
-        fc_output = self.hidden_layers(concatenated)
-        return self.fc_out(fc_output).squeeze()
+    def forward(self, text_input, other_features_input) -> nn.Linear:
+        _, (lstm_hidden_state, _) = self.lstm_layers(text_input)
+        lstm_output = lstm_hidden_state[-1]
+        fully_connected_layers_input = torch.cat((lstm_output, other_features_input), dim=1)
+        fully_connected_layers_sequence = self.fully_connected_layers(fully_connected_layers_input)
+        return self.output_layer(fully_connected_layers_sequence).squeeze()

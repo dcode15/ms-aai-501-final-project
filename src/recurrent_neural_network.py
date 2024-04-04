@@ -9,13 +9,17 @@ from preprocessor import Preprocessor
 from rnn_model import RNNModel
 from vectorizer import Vectorizer
 
+"""
+Trains and evaluates an RNN model on review data using Word2Vec embeddings. If called during an NNI experiment, will 
+report results to NNI and use provided hyperparameters.
+"""
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Running with {device} device.")
 
-original_data_path = "../data/Software_5-core.json"
-
-logger.info(f"Reading data from {original_data_path}")
-reviews = pd.read_json(original_data_path, lines=True)
+data_path = "../data/Software_5-core.json"
+logger.info(f"Reading data from {data_path}")
+reviews = pd.read_json(data_path, lines=True)
 reviews = Preprocessor.preprocess_reviews(reviews, tokenization_strategy=TokenizationStrategy.WORD,
                                           text_normalization_strategy=TextNormalizationStrategy.LEMMATIZATION)
 

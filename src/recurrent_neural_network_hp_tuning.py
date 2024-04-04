@@ -1,5 +1,9 @@
 from nni.experiment import Experiment
 
+"""
+Performs hyperparameter tuning on the RNN model using the recurrent_neural_network.py script.
+"""
+
 experiment = Experiment("local")
 experiment.config.trial_command = "python recurrent_neural_network.py"
 experiment.config.trial_code_directory = "."

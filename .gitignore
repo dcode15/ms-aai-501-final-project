@@ -2,6 +2,7 @@
 
 out/
 logs/
+results/
 src/out
 src/logs
 src/results
