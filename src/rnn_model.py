@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
+from vectorizer import Vectorizer
 
 from get_logger import logger
 
@@ -20,7 +21,7 @@ class RNNModel:
 
     def train(self, reviews, x_data, y_data, config, num_epochs=10, batch_size=128, validation_split=0.2) -> None:
         logger.info("Training RNN model.")
-        self.model = RNNModule(reviews.shape[2], x_data.shape[1], config).to(self.device)
+        self.model = RNNModule(100, x_data.shape[1], config).to(self.device)
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config["learning_rate"],
                                           weight_decay=config["weight_decay"])
@@ -31,7 +32,8 @@ class RNNModel:
             self.model.train()
             for i in range(0, len(reviews_train), batch_size):
                 logger.info(f"Processing batch {int(i / batch_size) + 1} of {ceil(len(reviews_train) / batch_size)}")
-                batch_review_vectors = reviews_train[i:i + batch_size]
+                batch_review_vectors = Vectorizer.get_embeddings(reviews_train[i:i + batch_size],
+                                                                 Vectorizer.EmbeddingModel.WORD2VEC)
                 batch_x_data = x_train[i:i + batch_size]
                 batch_y_data = y_train[i:i + batch_size]
 
@@ -54,7 +56,10 @@ class RNNModel:
         validation_losses = []
         with torch.no_grad():
             for i in range(0, len(x_data), batch_size):
-                batch_reviews = torch.tensor(reviews[i:i + batch_size], dtype=torch.float32).to(self.device)
+                batch_reviews = Vectorizer.get_embeddings(reviews[i:i + batch_size],
+                                                          Vectorizer.EmbeddingModel.WORD2VEC)
+
+                batch_reviews = torch.tensor(batch_reviews, dtype=torch.float32).to(self.device)
                 batch_x_data = torch.tensor(x_data[i:i + batch_size].values, dtype=torch.float32).to(self.device)
                 batch_y_data = torch.tensor(y_data[i:i + batch_size].values, dtype=torch.float32).to(self.device)
 
@@ -65,18 +70,19 @@ class RNNModel:
         avg_validation_loss = sum(validation_losses) / len(validation_losses)
         return avg_validation_loss
 
-    def test(self, review_vectors, x_data, y_data, batch_size=128) -> Tuple[float, float, List]:
+    def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple[float, float, List]:
         logger.info("Testing RNN model.")
-        review_vectors_test_tensor = torch.tensor(review_vectors, dtype=torch.float32)
-        x_test_tensor = torch.tensor(x_data.values, dtype=torch.float32)
 
         predictions = []
         with torch.no_grad():
-            for i in range(0, len(review_vectors_test_tensor), batch_size):
-                batch_review_vectors_test = review_vectors_test_tensor[i:i + batch_size].to(self.device)
-                batch_x_test = x_test_tensor[i:i + batch_size].to(self.device)
+            for i in range(0, len(reviews), batch_size):
+                batch_reviews = Vectorizer.get_embeddings(reviews[i:i + batch_size],
+                                                          Vectorizer.EmbeddingModel.FASTTEXT)
 
-                batch_predictions = self.model(batch_review_vectors_test, batch_x_test)
+                batch_reviews = torch.tensor(batch_reviews, dtype=torch.float32).to(self.device)
+                batch_x_data = torch.tensor(x_data[i:i + batch_size].values, dtype=torch.float32).to(self.device)
+
+                batch_predictions = self.model(batch_reviews, batch_x_data)
                 predictions.append(batch_predictions.cpu())
 
         predictions = torch.cat([prediction.flatten() for prediction in predictions]).numpy()
