@@ -1,3 +1,5 @@
+from time import process_time
+
 import nni
 import pandas as pd
 import torch
@@ -47,9 +49,17 @@ else:
     }
 
 model = RNNModel()
+
+training_start_time = process_time()
 model.train(review_vectors_train, x_train, y_train,
             config=hyperparams, num_epochs=hyperparams["num_epochs"])
+training_end_time = process_time()
+logger.info(f"Training time: {training_end_time - training_start_time}s")
+
+inference_start_time = process_time()
 mse, _, predictions = model.test(review_vectors_test, x_test, y_test)
+inference_end_time = process_time()
+logger.info(f"Inference time: {inference_end_time - inference_start_time}s")
 
 top_reviews, bottom_reviews = model.get_top_bottom_results(reviews, review_vectors_test, x_test, y_test)
 print("Top reviews:")

@@ -9,7 +9,7 @@ experiment.config.trial_command = "python transformer_neural_network.py"
 experiment.config.trial_code_directory = "."
 experiment.config.max_experiment_duration = "3h"
 # experiment.config.max_trial_number = 10
-experiment.config.tuner.name = "Metis"
+experiment.config.tuner.name = "TPE"
 experiment.config.tuner.class_args["optimize_mode"] = "minimize"
 experiment.config.trial_concurrency = 1
 
