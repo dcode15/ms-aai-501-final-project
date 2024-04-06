@@ -1,3 +1,4 @@
+from math import ceil
 from typing import Tuple, List
 
 import nni
@@ -5,6 +6,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.model_selection import train_test_split
 from transformers import RobertaForSequenceClassification, RobertaTokenizer
 
 from get_logger import logger
@@ -18,18 +20,22 @@ class TransformerModel:
         self.optimizer = None
         self.tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
-    def train(self, reviews, x_data, y_data, config, num_epochs=10, batch_size=128) -> None:
+    def train(self, reviews, x_data, y_data, config, num_epochs=10, batch_size=128, validation_split=0.2) -> None:
         logger.info("Training Transformer model.")
         self.model = TransformerModule(x_data.shape[1], config).to(self.device)
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config["learning_rate"],
                                           weight_decay=config["weight_decay"])
+        x_train, x_validation, y_train, y_validation, reviews_train, reviews_validation = train_test_split(
+            x_data, y_data, reviews, test_size=validation_split, random_state=1)
 
         for epoch in range(num_epochs):
-            for i in range(0, len(reviews), batch_size):
-                batch_reviews = reviews[i:i + batch_size]
-                batch_x_data = x_data[i:i + batch_size]
-                batch_y_data = y_data[i:i + batch_size]
+            self.model.train()
+            for i in range(0, len(reviews_train), batch_size):
+                logger.info(f"Processing batch {int(i / batch_size) + 1} of {ceil(len(reviews_train) / batch_size)}")
+                batch_reviews = reviews_train[i:i + batch_size]
+                batch_x_data = x_train[i:i + batch_size]
+                batch_y_data = y_train[i:i + batch_size]
 
                 batch_reviews = self.tokenizer(list(batch_reviews), padding=True, truncation=True,
                                                return_tensors="pt").to(self.device)
@@ -42,8 +48,26 @@ class TransformerModel:
                 loss.backward()
                 self.optimizer.step()
 
-            logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {loss.item():.4f}")
-            nni.report_intermediate_result(loss.item())
+            validation_loss = self.__validate(reviews_validation, x_validation, y_validation, batch_size)
+            logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {round(validation_loss, 3)}")
+            nni.report_intermediate_result(validation_loss)
+
+    def __validate(self, reviews, x_data, y_data, batch_size=128):
+        self.model.eval()
+        validation_losses = []
+        with torch.no_grad():
+            for i in range(0, len(x_data), batch_size):
+                batch_reviews = self.tokenizer(list(reviews[i:i + batch_size].values), padding=True, truncation=True,
+                                               return_tensors="pt").to(self.device)
+                batch_x_data = torch.tensor(x_data[i:i + batch_size].values, dtype=torch.float32).to(self.device)
+                batch_y_data = torch.tensor(y_data[i:i + batch_size].values, dtype=torch.float32).to(self.device)
+
+                outputs = self.model(batch_reviews, batch_x_data)
+                loss = self.criterion(outputs, batch_y_data)
+                validation_losses.append(loss.item())
+
+        avg_validation_loss = sum(validation_losses) / len(validation_losses)
+        return avg_validation_loss
 
     def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple[float, float, List]:
         logger.info("Testing Transformer model.")
