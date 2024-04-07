@@ -161,6 +161,30 @@ class Preprocessor:
         scaler = StandardScaler()
 
         for column in columns_to_standardize:
-            reviews[f"{column}Std"] = scaler.fit_transform(reviews[[column]])
+            if column == "vote":
+                reviews = Preprocessor.standardize_votes(reviews)
+            else:
+                reviews[f"{column}Std"] = scaler.fit_transform(reviews[[column]])
 
         return reviews
+
+    @staticmethod
+    def standardize_votes(reviews: pd.DataFrame, min_product_votes: int = 10) -> pd.DataFrame:
+        """
+        Standardizes the vote counts for product reviews in a DataFrame, filtering out products with fewer votes than
+        the specified minimum. Vote counts are standardized relative to other reviews for the same product.
+
+        :param reviews: A DataFrame containing the review data, must have 'vote' and 'asin' columns
+        :param min_product_votes: The minimum total number of votes required for a product to be included in the output.
+        :return: A DataFrame containing the original data with an additional 'voteStd' column containing the
+                 standardized vote value.
+        """
+        filtered_reviews = reviews.groupby('asin').filter(lambda product: product['vote'].sum() >= min_product_votes)
+        filtered_reviews.reset_index(drop=True)
+
+        def standardize_group_votes(group):
+            scaler = StandardScaler()
+            group['voteStd'] = scaler.fit_transform(group["vote"].values.reshape(-1, 1))
+            return group
+
+        return filtered_reviews.groupby('asin').apply(standardize_group_votes)
