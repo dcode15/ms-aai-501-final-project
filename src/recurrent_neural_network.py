@@ -1,3 +1,4 @@
+import os
 from time import process_time
 
 import nni
@@ -18,18 +19,26 @@ report results to NNI and use provided hyperparameters.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Running with {device} device.")
 
-data_path = "../data/Software_5-core.json"
-logger.info(f"Reading data from {data_path}")
-reviews = pd.read_json(data_path, lines=True)
-reviews = Preprocessor.preprocess_reviews(reviews, tokenization_strategy=TokenizationStrategy.WORD,
-                                          text_normalization_strategy=TextNormalizationStrategy.LEMMATIZATION)
+original_data_path = "../data/Software.json"
+preprocessed_data_path = "../data/Software-Preprocessed.json"
+
+if os.path.isfile(preprocessed_data_path):
+    logger.info(f"Reading data from {preprocessed_data_path}")
+    reviews = pd.read_json(preprocessed_data_path, lines=True)
+else:
+    logger.info(f"Reading data from {original_data_path}")
+    reviews = pd.read_json(original_data_path, lines=True)
+    reviews = Preprocessor.preprocess_reviews(reviews, tokenization_strategy=TokenizationStrategy.WORD,
+                                              text_normalization_strategy=TextNormalizationStrategy.LEMMATIZATION)
+    reviews[["reviewText", "cleanedReviewText", "verified", "reviewLengthStd", "reviewAgeStd", "voteStd"]].to_json(
+        preprocessed_data_path, lines=True, orient="records")
 
 x_data = reviews[["verified", "reviewLengthStd", "reviewAgeStd"]]
 y_data = reviews["voteStd"]
 
-review_vectors_train, review_vectors_test, y_train, y_test = train_test_split(reviews["cleanedReviewText"], y_data,
-                                                                              test_size=0.25,
-                                                                              random_state=1)
+reviews_train, review_vectors_test, y_train, y_test = train_test_split(reviews["cleanedReviewText"], y_data,
+                                                                       test_size=0.25,
+                                                                       random_state=1)
 x_train, x_test, _, _ = train_test_split(x_data, y_data, test_size=0.25, random_state=1)
 
 optimized_params = nni.get_next_parameter()
@@ -50,8 +59,8 @@ else:
 model = RNNModel()
 
 training_start_time = process_time()
-model.train(review_vectors_train, x_train, y_train,
-            config=hyperparams, num_epochs=hyperparams["num_epochs"])
+model.train(reviews_train, x_train, y_train,
+            config=hyperparams, num_epochs=hyperparams["num_epochs"], validation_split=0)
 training_end_time = process_time()
 logger.info(f"Training time: {training_end_time - training_start_time}s")
 

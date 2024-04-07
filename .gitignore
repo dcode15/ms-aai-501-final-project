@@ -9,8 +9,7 @@ src/logs
 src/results
 
 data/Software.json
-data/Software_Full.jsonl
-data/Software_Metadata.jsonl
+data/Software-Preprocessed.json
 
 src/properties/properties*
 !src/properties/properties_template.py

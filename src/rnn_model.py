@@ -25,8 +25,13 @@ class RNNModel:
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config["learning_rate"],
                                           weight_decay=config["weight_decay"])
-        x_train, x_validation, y_train, y_validation, reviews_train, reviews_validation = train_test_split(
-            x_data, y_data, reviews, test_size=validation_split, random_state=1)
+        if validation_split == 0:
+            reviews_train = reviews
+            x_train = x_data
+            y_train = y_data
+        else:
+            x_train, x_validation, y_train, y_validation, reviews_train, reviews_validation = train_test_split(
+                x_data, y_data, reviews, test_size=validation_split, random_state=1)
 
         for epoch in range(num_epochs):
             self.model.train()
@@ -47,9 +52,13 @@ class RNNModel:
                 loss.backward()
                 self.optimizer.step()
 
-            validation_loss = self.__validate(reviews_validation, x_validation, y_validation, batch_size)
-            logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {round(validation_loss, 3)}")
-            nni.report_intermediate_result(validation_loss)
+            if validation_split == 0:
+                logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {round(loss.item(), 3)}")
+                nni.report_intermediate_result(loss.item())
+            else:
+                validation_loss = self.__validate(reviews_validation, x_validation, y_validation, batch_size)
+                logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {round(validation_loss, 3)}")
+                nni.report_intermediate_result(validation_loss)
 
     def __validate(self, reviews, x_data, y_data, batch_size=128):
         self.model.eval()
