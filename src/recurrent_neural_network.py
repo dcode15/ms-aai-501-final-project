@@ -20,7 +20,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Running with {device} device.")
 
 original_data_path = "../data/Software.json"
-preprocessed_data_path = "../data/Software-Preprocessed.json"
+preprocessed_data_path = "../data/Software-Preprocessed-RNN.json"
 
 if os.path.isfile(preprocessed_data_path):
     logger.info(f"Reading data from {preprocessed_data_path}")

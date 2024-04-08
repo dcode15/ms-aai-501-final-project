@@ -1,3 +1,4 @@
+import os
 from time import process_time
 
 import nni
@@ -17,11 +18,19 @@ NNI experiment, will report results to NNI and use provided hyperparameters.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Running with {device} device.")
 
-data_path = "../data/Software_5-core.json"
-logger.info(f"Reading data from {data_path}")
-reviews = pd.read_json(data_path, lines=True)
-reviews = Preprocessor.clean_review_objects(reviews)
-reviews = Preprocessor.standardize_columns(reviews, ["vote", "reviewLength", "reviewAge"])
+original_data_path = "../data/Software_5-core.json"
+preprocessed_data_path = "../data/Software-Preprocessed-Transformer.json"
+
+if os.path.isfile(preprocessed_data_path):
+    logger.info(f"Reading data from {preprocessed_data_path}")
+    reviews = pd.read_json(preprocessed_data_path, lines=True)
+else:
+    logger.info(f"Reading data from {original_data_path}")
+    reviews = pd.read_json(original_data_path, lines=True)
+    reviews = Preprocessor.clean_review_objects(reviews)
+    reviews = Preprocessor.standardize_columns(reviews, ["vote", "reviewLength", "reviewAge"])
+    reviews[["reviewText", "verified", "reviewLengthStd", "reviewAgeStd", "voteStd"]].to_json(
+        preprocessed_data_path, lines=True, orient="records")
 
 x_data = reviews[["verified", "reviewLengthStd", "reviewAgeStd"]]
 y_data = reviews["voteStd"]

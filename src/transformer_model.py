@@ -1,10 +1,11 @@
-from math import ceil
+from math import ceil, sqrt
 from typing import Tuple, List
 
 import nni
 import pandas as pd
 import torch
 import torch.nn as nn
+from scipy.stats import kendalltau
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
 from transformers import RobertaForSequenceClassification, RobertaTokenizer
@@ -26,13 +27,20 @@ class TransformerModel:
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config["learning_rate"],
                                           weight_decay=config["weight_decay"])
-        x_train, x_validation, y_train, y_validation, reviews_train, reviews_validation = train_test_split(
-            x_data, y_data, reviews, test_size=validation_split, random_state=1)
+        if validation_split == 0:
+            reviews_train = reviews
+            x_train = x_data
+            y_train = y_data
+        else:
+            x_train, x_validation, y_train, y_validation, reviews_train, reviews_validation = train_test_split(
+                x_data, y_data, reviews, test_size=validation_split, random_state=1)
 
         for epoch in range(num_epochs):
             self.model.train()
             for i in range(0, len(reviews_train), batch_size):
-                logger.info(f"Processing batch {int(i / batch_size) + 1} of {ceil(len(reviews_train) / batch_size)}")
+                if (int(i / batch_size) + 1) % 50 == 0:
+                    logger.info(
+                        f"Processing batch {int(i / batch_size) + 1} of {ceil(len(reviews_train) / batch_size)}")
                 batch_reviews = reviews_train[i:i + batch_size]
                 batch_x_data = x_train[i:i + batch_size]
                 batch_y_data = y_train[i:i + batch_size]
@@ -48,9 +56,13 @@ class TransformerModel:
                 loss.backward()
                 self.optimizer.step()
 
-            validation_loss = self.__validate(reviews_validation, x_validation, y_validation, batch_size)
-            logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {round(validation_loss, 3)}")
-            nni.report_intermediate_result(validation_loss)
+            if validation_split == 0:
+                logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {round(loss.item(), 3)}")
+                nni.report_intermediate_result(loss.item())
+            else:
+                validation_loss = self.__validate(reviews_validation, x_validation, y_validation, batch_size)
+                logger.info(f"Epoch {epoch + 1}/{num_epochs}: Loss = {round(validation_loss, 3)}")
+                nni.report_intermediate_result(validation_loss)
 
     def __validate(self, reviews, x_data, y_data, batch_size=128):
         self.model.eval()
@@ -69,7 +81,7 @@ class TransformerModel:
         avg_validation_loss = sum(validation_losses) / len(validation_losses)
         return avg_validation_loss
 
-    def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple[float, float, List]:
+    def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple[float, float, float, List]:
         logger.info("Testing Transformer model.")
         reviews_test = self.tokenizer(list(reviews), padding=True, truncation=True, return_tensors="pt")
         x_test_tensor = torch.tensor(x_data.values, dtype=torch.float32)
@@ -87,11 +99,14 @@ class TransformerModel:
 
         mse = mean_squared_error(y_data[:len(predictions)], predictions)
         mae = mean_absolute_error(y_data[:len(predictions)], predictions)
+        kendalls_tau = kendalltau(y_data[:len(predictions)], predictions)
 
         logger.info(f"MSE: {mse}")
+        logger.info(f"RMSE: {sqrt(mse)}")
         logger.info(f"MAE: {mae}")
+        logger.info(f"Kendall's Tau: value = {kendalls_tau.statistic}, p-value = {kendalls_tau.pvalue}")
 
-        return mse, mae, predictions
+        return mse, mae, kendalls_tau, predictions
 
     def get_top_bottom_results(self, reviews, x_data, y_data, result_count=3) -> Tuple[
         List[str], List[str]]:

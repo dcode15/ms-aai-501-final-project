@@ -19,7 +19,8 @@ model = RobertaForSequenceClassification.from_pretrained("distilroberta-base", n
     device)
 
 data_path = "../data/Software.json"
-reviews = pd.read_json(data_path, lines=True).sample(frac=0.25, random_state=1)
+reviews = pd.read_json(data_path, lines=True)
+reviews, _ = train_test_split(reviews, test_size=0.25, random_state=1)
 reviews = Preprocessor.clean_review_objects(reviews)
 reviews = Preprocessor.standardize_columns(reviews, ["vote"])
 input_data = reviews[["reviewText", "voteStd"]].rename(columns={"reviewText": "text", "voteStd": "target"})
