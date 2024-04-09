@@ -1,5 +1,5 @@
 import os
-from time import process_time
+from time import perf_counter
 
 import nni
 import pandas as pd
@@ -20,7 +20,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Running with {device} device.")
 
 original_data_path = "../data/Software.json"
-preprocessed_data_path = "../data/Software-Preprocessed.json"
+preprocessed_data_path = "../data/Software-Preprocessed-RNN.json"
 
 if os.path.isfile(preprocessed_data_path):
     logger.info(f"Reading data from {preprocessed_data_path}")
@@ -58,16 +58,16 @@ else:
 
 model = RNNModel()
 
-training_start_time = process_time()
+training_start_time = perf_counter()
 model.train(reviews_train, x_train, y_train,
             config=hyperparams, num_epochs=hyperparams["num_epochs"], validation_split=0)
-training_end_time = process_time()
-logger.info(f"Training time: {training_end_time - training_start_time}s")
+training_end_time = perf_counter()
+logger.info(f"Training time: {round(training_end_time - training_start_time)}s")
 
-inference_start_time = process_time()
-mse, _, predictions = model.test(review_vectors_test, x_test, y_test)
-inference_end_time = process_time()
-logger.info(f"Inference time: {inference_end_time - inference_start_time}s")
+inference_start_time = perf_counter()
+mse, _, _, predictions = model.test(review_vectors_test, x_test, y_test)
+inference_end_time = perf_counter()
+logger.info(f"Inference time: {round(inference_end_time - inference_start_time)}s")
 
 top_reviews, bottom_reviews = model.get_top_bottom_results(reviews, review_vectors_test, x_test, y_test)
 print("Top reviews:")

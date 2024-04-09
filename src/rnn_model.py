@@ -1,4 +1,4 @@
-from math import ceil
+from math import ceil, sqrt
 from typing import Tuple, List
 
 import nni
@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
+from scipy.stats import kendalltau
 from vectorizer import Vectorizer
 
 from get_logger import logger
@@ -36,7 +37,8 @@ class RNNModel:
         for epoch in range(num_epochs):
             self.model.train()
             for i in range(0, len(reviews_train), batch_size):
-                logger.info(f"Processing batch {int(i / batch_size) + 1} of {ceil(len(reviews_train) / batch_size)}")
+                if (int(i / batch_size) + 1) % 50 == 0:
+                    logger.info(f"Processing batch {int(i / batch_size) + 1} of {ceil(len(reviews_train) / batch_size)}")
                 batch_review_vectors = Vectorizer.get_embeddings(reviews_train[i:i + batch_size],
                                                                  Vectorizer.EmbeddingModel.WORD2VEC)
                 batch_x_data = x_train[i:i + batch_size]
@@ -79,7 +81,7 @@ class RNNModel:
         avg_validation_loss = sum(validation_losses) / len(validation_losses)
         return avg_validation_loss
 
-    def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple[float, float, List]:
+    def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple[float, float, float, List]:
         logger.info("Testing RNN model.")
 
         predictions = []
@@ -98,11 +100,14 @@ class RNNModel:
 
         mse = mean_squared_error(y_data[:len(predictions)], predictions)
         mae = mean_absolute_error(y_data[:len(predictions)], predictions)
+        kendalls_tau = kendalltau(y_data[:len(predictions)], predictions)
 
         logger.info(f"MSE: {mse}")
+        logger.info(f"RMSE: {sqrt(mse)}")
         logger.info(f"MAE: {mae}")
+        logger.info(f"Kendall's Tau: value = {kendalls_tau.statistic}, p-value = {kendalls_tau.pvalue}")
 
-        return mse, mae, predictions
+        return mse, mae, kendalls_tau, predictions
 
     def get_top_bottom_results(self, reviews, review_vectors, x_data, y_data, result_count=3) -> Tuple[
         List[str], List[str]]:
