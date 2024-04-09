@@ -1,17 +1,25 @@
 from time import process_time
-
 import pandas as pd
+import numpy as np
 from scipy.sparse import hstack
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import os
+import tensorflow as tf
 
 from enums import TextNormalizationStrategy
 from get_logger import logger
 from preprocessor import Preprocessor
 from vectorizer import Vectorizer
 
-reviews = pd.read_json("../data/Software_5-core.json", lines=True)
+# Define rf_model as an instance of RandomForestRegressor
+rf_model = RandomForestRegressor(random_state=1)
+
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+reviews = pd.read_json('C:/USD/ms-aai-501-final-project/data/Software_5-core.json', lines=True)
 reviews = Preprocessor.preprocess_reviews(reviews, text_normalization_strategy=TextNormalizationStrategy.LEMMATIZATION)
 
 review_vectors = Vectorizer.get_tf_idf_vectors(reviews["cleanedReviewText"])
@@ -37,3 +45,34 @@ mse = mean_squared_error(y_test, y_predictions)
 mae = mean_absolute_error(y_test, y_predictions)
 logger.info(f"MSE: {mse}")
 logger.info(f"MAE: {mae}")
+
+# Fit the model on your training data
+rf_model.fit(X_train, y_train)
+
+# Make predictions with the model
+y_predictions = rf_model.predict(X_test)
+
+# Plot Actual vs. Predicted values
+plt.figure(figsize=(10, 6))
+plt.scatter(y_test, y_predictions, alpha=0.5)
+plt.title('Actual vs. Predicted Values')
+plt.xlabel('Actual Values')
+plt.ylabel('Predicted Values')
+plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=4)
+plt.show()
+
+# Calculate and plot feature importances
+# Here you may need to adjust the feature names based on your dataset
+feature_names = np.append(
+    ['TFIDF_Feature_' + str(i) for i in range(review_vectors.shape[1])],
+    ['Verified', 'ReviewAgeStd', 'ReviewLengthStd']
+)
+importances = rf_model.feature_importances_
+sorted_indices = np.argsort(importances)[::-1]
+
+plt.figure(figsize=(15, 5))
+plt.title('Feature Importances')
+plt.bar(range(len(sorted_indices)), importances[sorted_indices], align='center')
+plt.xticks(range(len(sorted_indices)), feature_names[sorted_indices], rotation=90)
+plt.tight_layout()
+plt.show()
