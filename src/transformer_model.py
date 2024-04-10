@@ -112,7 +112,7 @@ class TransformerModel:
         List[str], List[str]]:
         logger.info("Getting top and bottom results.")
         x_data["reviewAgeStd"] = 0
-        _, _, predictions = self.test(reviews.copy(), x_data, y_data)
+        _, _, _, predictions = self.test(reviews.copy(), x_data, y_data)
         reviews_with_predictions = pd.DataFrame({
             "reviewText": reviews,
             "voteStd": predictions

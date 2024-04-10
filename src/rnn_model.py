@@ -38,7 +38,8 @@ class RNNModel:
             self.model.train()
             for i in range(0, len(reviews_train), batch_size):
                 if (int(i / batch_size) + 1) % 50 == 0:
-                    logger.info(f"Processing batch {int(i / batch_size) + 1} of {ceil(len(reviews_train) / batch_size)}")
+                    logger.info(
+                        f"Processing batch {int(i / batch_size) + 1} of {ceil(len(reviews_train) / batch_size)}")
                 batch_review_vectors = Vectorizer.get_embeddings(reviews_train[i:i + batch_size],
                                                                  Vectorizer.EmbeddingModel.WORD2VEC)
                 batch_x_data = x_train[i:i + batch_size]
@@ -112,7 +113,7 @@ class RNNModel:
     def get_top_bottom_results(self, reviews, review_vectors, x_data, y_data, result_count=3) -> Tuple[
         List[str], List[str]]:
         x_data["reviewAgeStd"] = 0
-        _, _, predictions = self.test(review_vectors, x_data, y_data)
+        _, _, _, predictions = self.test(review_vectors, x_data, y_data)
         reviews_with_predictions = pd.DataFrame({
             "reviewText": reviews.iloc[x_data.index]["reviewText"],
             "voteStd": predictions
