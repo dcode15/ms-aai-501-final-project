@@ -9,7 +9,7 @@ src/logs
 src/results
 
 data/Software.json
-data/Software-Preprocessed.json
+data/Software-Preprocessed*.json
 
 src/properties/properties*
 !src/properties/properties_template.py
