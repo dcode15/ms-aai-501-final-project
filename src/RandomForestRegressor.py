@@ -15,7 +15,8 @@ from preprocessor import Preprocessor
 from vectorizer import Vectorizer
 
 # Define rf_model as an instance of RandomForestRegressor
-rf_model = RandomForestRegressor(random_state=1)
+
+rf_model = RandomForestRegressor(n_estimators=10, min_samples_leaf=10, random_state=1)
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
@@ -70,9 +71,11 @@ feature_names = np.append(
 importances = rf_model.feature_importances_
 sorted_indices = np.argsort(importances)[::-1]
 
-plt.figure(figsize=(15, 5))
+top_n = 20  # for example, to show top 20 features
+sorted_idx = importances.argsort()[-top_n:]
+plt.figure(figsize=(10, 5))
 plt.title('Feature Importances')
-plt.bar(range(len(sorted_indices)), importances[sorted_indices], align='center')
-plt.xticks(range(len(sorted_indices)), feature_names[sorted_indices], rotation=90)
+plt.bar(range(top_n), importances[sorted_idx], align='center')
+plt.xticks(range(top_n), np.array(feature_names)[sorted_idx], rotation=90)
 plt.tight_layout()
 plt.show()
