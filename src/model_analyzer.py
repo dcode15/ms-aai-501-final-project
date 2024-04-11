@@ -5,6 +5,7 @@ import pandas as pd
 from numpy import ndarray
 from sklearn.metrics import mean_squared_error, mean_absolute_error, ndcg_score
 from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
 
 from get_logger import logger
 
@@ -80,3 +81,14 @@ class ModelAnalyzer:
                 print(f"{review}\n\n")
 
         return top_reviews, bottom_reviews
+
+    @staticmethod
+    def plot_predictions_vs_actuals(actual_values, predicted_values, title="Predictions vs Actuals",
+                                    x_label="Actual Values", y_label="Predicted Values"):
+        plt.figure(figsize=(10, 6))
+        plt.scatter(actual_values, predicted_values, alpha=0.5)
+        plt.title(title)
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        plt.plot([actual_values.min(), actual_values.max()], [actual_values.min(), actual_values.max()], 'k--', lw=4)
+        plt.show()

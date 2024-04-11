@@ -47,14 +47,14 @@ if optimized_params:
     hyperparams = optimized_params
 else:
     hyperparams = {
-        "dropout": 0.005,
+        "dropout": 0,
         "lstm_size": 64,
-        "hidden_layer_size": 32,
-        "learning_rate": 0.0005,
-        "num_hidden_layers": 1,
-        "num_epochs": 3,
-        "weight_decay": 1e-3,
-        "num_lstm_layers": 2
+        "hidden_layer_size": 64,
+        "learning_rate": 0.0002,
+        "num_hidden_layers": 4,
+        "num_epochs": 4,
+        "weight_decay": 0.00001,
+        "num_lstm_layers": 1
     }
 
 model = RNNModel()
@@ -74,5 +74,6 @@ metrics = ModelAnalyzer.get_key_metrics(y_test, predictions)
 logger.info(f"Model metrics: {metrics}")
 
 ModelAnalyzer.get_top_bottom_results(reviews, x_test, predictions, print_reviews=True)
+ModelAnalyzer.plot_predictions_vs_actuals(y_test, predictions)
 
 nni.report_final_result(metrics["mse"])

@@ -46,10 +46,10 @@ if optimized_params:
 else:
     hyperparams = {
         "dropout": 0,
-        "learning_rate": 0.0005,
-        "hidden_layer_size": 128,
-        "num_hidden_layers": 11,
-        "num_epochs": 3,
+        "learning_rate": 0.0025,
+        "hidden_layer_size": 64,
+        "num_hidden_layers": 13,
+        "num_epochs": 2,
         "weight_decay": 0
     }
 
@@ -66,6 +66,7 @@ predictions = model.test(reviews_test.copy(), x_test)
 inference_end_time = process_time()
 logger.info(f"Inference time: {inference_end_time - inference_start_time}s")
 
+ModelAnalyzer.plot_predictions_vs_actuals(y_test, predictions)
 metrics = ModelAnalyzer.get_key_metrics(y_test, predictions)
 logger.info(f"Model metrics: {metrics}")
 
