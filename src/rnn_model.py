@@ -5,8 +5,9 @@ import nni
 import pandas as pd
 import torch
 import torch.nn as nn
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, ndcg_score
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 from scipy.stats import kendalltau
 from vectorizer import Vectorizer
 
@@ -103,10 +104,19 @@ class RNNModel:
         mae = mean_absolute_error(y_data[:len(predictions)], predictions)
         kendalls_tau = kendalltau(y_data[:len(predictions)], predictions)
 
+        scaler = MinMaxScaler()
+        y_test_2D = y_data[:len(predictions)].values.reshape(-1, 1)
+        y_predictions_2D = predictions.reshape(-1, 1)
+        scaler.fit(y_test_2D)
+        y_test_scaled = scaler.transform(y_test_2D)
+        y_predictions_scaled = scaler.transform(y_predictions_2D)
+        ndcg = ndcg_score([y_test_scaled.flatten()], [y_predictions_scaled.flatten()], k=100)
+
         logger.info(f"MSE: {mse}")
         logger.info(f"RMSE: {sqrt(mse)}")
         logger.info(f"MAE: {mae}")
         logger.info(f"Kendall's Tau: value = {kendalls_tau.statistic}, p-value = {kendalls_tau.pvalue}")
+        logger.info(f"NDCG: {ndcg}")
 
         return mse, mae, kendalls_tau, predictions
 
