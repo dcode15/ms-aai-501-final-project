@@ -1,17 +1,14 @@
-from math import ceil, sqrt
+from math import ceil
 from typing import Tuple, List
 
 import nni
 import pandas as pd
 import torch
 import torch.nn as nn
-from sklearn.metrics import mean_squared_error, mean_absolute_error, ndcg_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-from scipy.stats import kendalltau
-from vectorizer import Vectorizer
 
 from get_logger import logger
+from vectorizer import Vectorizer
 
 
 class RNNModel:
@@ -83,7 +80,7 @@ class RNNModel:
         avg_validation_loss = sum(validation_losses) / len(validation_losses)
         return avg_validation_loss
 
-    def test(self, reviews, x_data, y_data, batch_size=128) -> Tuple[float, float, float, List]:
+    def test(self, reviews, x_data, batch_size=128) -> List[float]:
         logger.info("Testing RNN model.")
 
         predictions = []
@@ -98,40 +95,7 @@ class RNNModel:
                 batch_predictions = self.model(batch_reviews, batch_x_data)
                 predictions.append(batch_predictions.cpu())
 
-        predictions = torch.cat([prediction.flatten() for prediction in predictions]).numpy()
-
-        mse = mean_squared_error(y_data[:len(predictions)], predictions)
-        mae = mean_absolute_error(y_data[:len(predictions)], predictions)
-        kendalls_tau = kendalltau(y_data[:len(predictions)], predictions)
-
-        scaler = MinMaxScaler()
-        y_test_2D = y_data[:len(predictions)].values.reshape(-1, 1)
-        y_predictions_2D = predictions.reshape(-1, 1)
-        scaler.fit(y_test_2D)
-        y_test_scaled = scaler.transform(y_test_2D)
-        y_predictions_scaled = scaler.transform(y_predictions_2D)
-        ndcg = ndcg_score([y_test_scaled.flatten()], [y_predictions_scaled.flatten()], k=100)
-
-        logger.info(f"MSE: {mse}")
-        logger.info(f"RMSE: {sqrt(mse)}")
-        logger.info(f"MAE: {mae}")
-        logger.info(f"Kendall's Tau: value = {kendalls_tau.statistic}, p-value = {kendalls_tau.pvalue}")
-        logger.info(f"NDCG: {ndcg}")
-
-        return mse, mae, kendalls_tau, predictions
-
-    def get_top_bottom_results(self, reviews, review_vectors, x_data, y_data, result_count=3) -> Tuple[
-        List[str], List[str]]:
-        x_data["reviewAgeStd"] = 0
-        _, _, _, predictions = self.test(review_vectors, x_data, y_data)
-        reviews_with_predictions = pd.DataFrame({
-            "reviewText": reviews.iloc[x_data.index]["reviewText"],
-            "voteStd": predictions
-        })
-        reviews_with_predictions = reviews_with_predictions.sort_values("voteStd", ascending=False)
-
-        return reviews_with_predictions["reviewText"].head(result_count).values, reviews_with_predictions[
-            "reviewText"].tail(result_count).values,
+        return torch.cat([prediction.flatten() for prediction in predictions]).numpy()
 
 
 class RNNModule(nn.Module):

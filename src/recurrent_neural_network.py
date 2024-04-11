@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from enums import TextNormalizationStrategy, TokenizationStrategy
 from get_logger import logger
+from model_analyzer import ModelAnalyzer
 from preprocessor import Preprocessor
 from rnn_model import RNNModel
 
@@ -19,7 +20,7 @@ report results to NNI and use provided hyperparameters.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Running with {device} device.")
 
-original_data_path = "../data/Software.json"
+original_data_path = "../data/Software_5-core.json"
 preprocessed_data_path = "../data/Software-Preprocessed-RNN.json"
 
 if os.path.isfile(preprocessed_data_path):
@@ -65,19 +66,13 @@ training_end_time = perf_counter()
 logger.info(f"Training time: {round(training_end_time - training_start_time)}s")
 
 inference_start_time = perf_counter()
-mse, _, _, predictions = model.test(review_vectors_test, x_test, y_test)
+predictions = model.test(review_vectors_test, x_test)
 inference_end_time = perf_counter()
 logger.info(f"Inference time: {round(inference_end_time - inference_start_time)}s")
 
-top_reviews, bottom_reviews = model.get_top_bottom_results(reviews, review_vectors_test, x_test, y_test)
-print("Top reviews:")
-for review in top_reviews:
-    print("--------------------------------------------------------------\n")
-    print(f"{review}\n\n")
+metrics = ModelAnalyzer.get_key_metrics(y_test, predictions)
+logger.info(f"Model metrics: {metrics}")
 
-print("Bottom reviews:")
-for review in bottom_reviews:
-    print("--------------------------------------------------------------\n")
-    print(f"{review}\n\n")
+ModelAnalyzer.get_top_bottom_results(reviews, x_test, predictions, print_reviews=True)
 
-nni.report_final_result(mse)
+nni.report_final_result(metrics["mse"])
