@@ -150,7 +150,8 @@ class Preprocessor:
     def standardize_columns(reviews: pd.DataFrame, columns_to_standardize: List[str]) -> pd.DataFrame:
         """
         Standardizes specified columns in the given DataFrame by applying z-score normalization to the specified columns.
-        This transforms the data in the column to have a mean of 0 and a standard deviation of 1.
+        This transforms the data in the column to have a mean of 0 and a standard deviation of 1. Outliers more than
+        three standard deviations from the mean are removed.
 
         :param reviews: The DataFrame containing the data to be standardized.
         :param columns_to_standardize: A list of column names in the DataFrame that should be standardized.
@@ -166,6 +167,7 @@ class Preprocessor:
             else:
                 reviews[f"{column}Std"] = scaler.fit_transform(reviews[[column]])
 
+        reviews = reviews[abs(reviews["voteStd"]) <= 3]
         return reviews
 
     @staticmethod
