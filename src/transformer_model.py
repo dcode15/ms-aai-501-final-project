@@ -98,8 +98,9 @@ class TransformerModel:
 class TransformerModule(nn.Module):
     def __init__(self, num_other_features, config):
         super(TransformerModule, self).__init__()
-        self.roberta_model = RobertaForSequenceClassification.from_pretrained("../models/fine_tuned_distilroberta",
-                                                                              num_labels=1)
+        self.roberta_model = RobertaForSequenceClassification.from_pretrained(
+            "../models/fine_tuned_distilroberta",
+            num_labels=1)
         num_hidden_layers = config.get("num_hidden_layers", 1)
         hidden_layer_size = config.get("hidden_layer_size", 64)
         dropout_rate = config.get("dropout", 0.5)

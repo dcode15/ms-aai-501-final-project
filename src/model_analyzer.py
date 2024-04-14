@@ -1,11 +1,11 @@
 from math import sqrt
-from typing import Tuple
+from typing import Tuple, List
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from numpy import ndarray
 from sklearn.metrics import mean_squared_error, mean_absolute_error, ndcg_score
 from sklearn.preprocessing import MinMaxScaler
-import matplotlib.pyplot as plt
 
 from get_logger import logger
 
@@ -13,7 +13,7 @@ from get_logger import logger
 class ModelAnalyzer:
 
     @staticmethod
-    def get_key_metrics(actual_values, predicted_values, ndcg_k=None):
+    def get_key_metrics(actual_values: ndarray, predicted_values: ndarray, ndcg_k: int = None):
         """
         Calculates key metrics for assessing model performance.
 
@@ -29,7 +29,7 @@ class ModelAnalyzer:
         mae = mean_absolute_error(actual_values, predicted_values)
 
         scaler = MinMaxScaler()
-        ndcg_actual_values = actual_values.values.reshape(-1, 1)
+        ndcg_actual_values = actual_values.reshape(-1, 1)
         ndcg_predicted_values = predicted_values.reshape(-1, 1)
         scaler.fit(ndcg_actual_values)
         ndcg_actual_values = scaler.transform(ndcg_actual_values)
@@ -44,8 +44,8 @@ class ModelAnalyzer:
         }
 
     @staticmethod
-    def get_top_bottom_results(reviews, x_test, predictions, result_count=3, print_reviews=False) -> Tuple[
-        ndarray, ndarray]:
+    def get_top_bottom_results(reviews: pd.DataFrame, x_test: pd.DataFrame, predictions: List[float], result_count: int = 3,
+                               print_reviews: bool = False) -> Tuple[ndarray, ndarray]:
         """
         This method calculates the top and bottom ranked reviews based on the model predictions.
 
@@ -54,10 +54,10 @@ class ModelAnalyzer:
         :param x_test: The df used as the input features when testing the model.
         :param predictions: The predictions obtained from the model.
         :param result_count: The number of top and bottom results to return. Default is 3.
+        :param print_reviews: Whether the top and bottom reviews should be printed to the console.
 
-        Returns:
-        Tuple[List[str], List[str]]: Returns two lists of strings; first being the top 'result_count' reviews,
-                                     second being the bottom 'result_count' reviews.
+        :returns: Returns two lists of strings; first being the top 'result_count' reviews,
+                  second being the bottom 'result_count' reviews.
         """
         logger.info("Calculating top and bottom ranked reviews.")
         x_test["reviewAgeStd"] = 0
@@ -83,8 +83,9 @@ class ModelAnalyzer:
         return top_reviews, bottom_reviews
 
     @staticmethod
-    def plot_predictions_vs_actuals(actual_values, predicted_values, title="Predictions vs Actuals",
-                                    x_label="Actual Values", y_label="Predicted Values"):
+    def plot_predictions_vs_actuals(actual_values: ndarray, predicted_values: ndarray,
+                                    title: str = "Predictions vs Actuals",
+                                    x_label: str = "Actual Values", y_label: str = "Predicted Values"):
         plt.figure(figsize=(10, 6))
         plt.scatter(actual_values, predicted_values, alpha=0.5)
         plt.title(title)

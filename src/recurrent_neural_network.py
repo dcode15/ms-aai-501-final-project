@@ -48,13 +48,13 @@ if optimized_params:
 else:
     hyperparams = {
         "dropout": 0,
-        "lstm_size": 64,
-        "hidden_layer_size": 64,
-        "learning_rate": 0.0002,
-        "num_hidden_layers": 4,
-        "num_epochs": 4,
+        "lstm_size": 32,
+        "hidden_layer_size": 128,
+        "learning_rate": 0.0004,
+        "num_hidden_layers": 1,
+        "num_epochs": 7,
         "weight_decay": 0.00001,
-        "num_lstm_layers": 1
+        "num_lstm_layers": 2
     }
 
 model = RNNModel()
@@ -63,17 +63,17 @@ training_start_time = perf_counter()
 model.train(reviews_train, x_train, y_train,
             config=hyperparams, num_epochs=hyperparams["num_epochs"], validation_split=0)
 training_end_time = perf_counter()
-logger.info(f"Training time: {round(training_end_time - training_start_time)}s")
+logger.info(f"Training time: {round(training_end_time - training_start_time, 3)}s")
 
 inference_start_time = perf_counter()
 predictions = model.test(review_vectors_test, x_test)
 inference_end_time = perf_counter()
-logger.info(f"Inference time: {round(inference_end_time - inference_start_time)}s")
+logger.info(f"Inference time: {round(inference_end_time - inference_start_time, 3)}s")
 
-metrics = ModelAnalyzer.get_key_metrics(y_test, predictions)
+ModelAnalyzer.plot_predictions_vs_actuals(y_test, predictions)
+metrics = ModelAnalyzer.get_key_metrics(y_test.values, predictions, ndcg_k=100)
 logger.info(f"Model metrics: {metrics}")
 
 ModelAnalyzer.get_top_bottom_results(reviews, x_test, predictions, print_reviews=True)
-ModelAnalyzer.plot_predictions_vs_actuals(y_test, predictions)
 
 nni.report_final_result(metrics["mse"])
