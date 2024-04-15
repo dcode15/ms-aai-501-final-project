@@ -9,6 +9,10 @@ from transformers import RobertaForSequenceClassification, RobertaTokenizer
 
 from get_logger import logger
 
+"""
+Reusable class representing a model combining a DistilRoBERTa transformer model with a fully-connected 
+neural network for regression. 
+"""
 
 class TransformerModel:
     def __init__(self):

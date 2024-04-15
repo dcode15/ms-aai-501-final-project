@@ -3,10 +3,12 @@ from typing import List
 import torch
 from sklearn.linear_model import LinearRegression
 from transformers import RobertaForSequenceClassification, RobertaTokenizer
-from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor
 
 from get_logger import logger
+
+"""
+Reusable class representing a model combining a DistilRoBERTa transformer model with a linear regression model. 
+"""
 
 
 class LinRegTransformerModel:
