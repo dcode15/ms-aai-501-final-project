@@ -26,5 +26,6 @@ Source code can be found in the `src` directory.
 The entrypoint scripts for training and evaluating each model are as follows:
 - Linear Regression: `src/LinearRegression.py`
 - Random Forest Regression: `src/RandomForestRegressor.py`
+- Support Vector Regression: `src/support_vector_model.ipynb`
 - Recurrent Neural Network: `src/recurrent_neural_network.py`
 - Transformer Neural Network: `src/transformer_neural_network.py`
